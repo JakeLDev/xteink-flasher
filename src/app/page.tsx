@@ -5,13 +5,7 @@ import EspController from "@/app/EspController";
 import Step from "@/components/Step/Step";
 
 import styles from "./page.module.css";
-
-const downloadEnglishFirmware = async () => {
-  const a = await fetch(
-    "http://gotaserver.xteink.com/api/download/ESP32C3/V3.0.8/V3.0.8-EN.bin",
-  );
-  return new Uint8Array(await a.arrayBuffer());
-};
+import { getFirmware } from "@/app/firmwareFetcher";
 
 const downloadData = (data: Uint8Array, fileName: string, mimeType: string) => {
   // @ts-expect-error types say no, but browser says yes
@@ -83,7 +77,7 @@ export default function Home() {
     updateStepData("Connect device", { status: "success" });
 
     appendStep({ name: "Download firmware", status: "running", progress: -1 });
-    const firmwareFile = await downloadEnglishFirmware().catch((e) => {
+    const firmwareFile = await getFirmware("3.0.8").catch((e) => {
       updateStepData("Download firmware", {
         status: "failed",
         errorMessage: e.toString(),

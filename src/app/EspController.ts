@@ -57,7 +57,9 @@ export default class EspController {
     ) => void,
   ) {
     if (data.length !== 0x1000000) {
-      throw `Data length must be 0x1000000, but got 0x${data.length.toString().padStart(7, "0")}`;
+      throw new Error(
+        `Data length must be 0x1000000, but got 0x${data.length.toString().padStart(7, "0")}`,
+      );
     }
 
     await this.writeData(data, 0, reportProgress);
@@ -72,7 +74,9 @@ export default class EspController {
     ) => void,
   ) {
     if (data.length !== 0x2000) {
-      throw `Data length must be 0x2000, but got 0x${data.length.toString().padStart(4, "0")}`;
+      throw new Error(
+        `Data length must be 0x2000, but got 0x${data.length.toString().padStart(4, "0")}`,
+      );
     }
 
     await this.writeData(data, 0xe000, reportProgress);
@@ -102,10 +106,12 @@ export default class EspController {
     ) => void,
   ) {
     if (data.length > 0x640000) {
-      throw `Data cannot be larger than 0x640000`;
+      throw new Error(`Data cannot be larger than 0x640000`);
     }
     if (data.length < 0x320000) {
-      throw `Data seems too small, are you sure this is the right file?`;
+      throw new Error(
+        `Data seems too small, are you sure this is the right file?`,
+      );
     }
 
     await this.writeData(data, 0x10000, reportProgress);
