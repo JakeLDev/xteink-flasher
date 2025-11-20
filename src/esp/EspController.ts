@@ -5,7 +5,9 @@ import { ESPLoader, Transport } from 'esptool-js';
 export default class EspController {
   static async requestDevice() {
     if (!('serial' in navigator && navigator.serial)) {
-      throw new Error('WebSerial is not supported in this browser');
+      throw new Error(
+        'WebSerial is not supported in this browser. Please use Chrome or Edge.',
+      );
     }
 
     return navigator.serial.requestPort({
