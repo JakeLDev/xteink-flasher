@@ -71,9 +71,10 @@ export default function Home() {
               goes wrong.
               <br />
               <b>Save full flash</b> will read your device&apos;s flash and save
-              it as <Em>flash.bin</Em>. You can use that file (or someone
-              else&apos;s) with <b>Write full flash from file</b> to overwrite
-              your device&apos;s entire flash.
+              it as <Em>flash.bin</Em>. This will take around 25 minutes to
+              complete. You can use that file (or someone else&apos;s) with{' '}
+              <b>Write full flash from file</b> to overwrite your device&apos;s
+              entire flash.
             </Text>
           </div>
           <Stack gap="4px" as="section">
