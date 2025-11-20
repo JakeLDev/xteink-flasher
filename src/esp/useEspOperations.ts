@@ -1,0 +1,212 @@
+'use client';
+
+import { useState } from 'react';
+import { getFirmware } from '@/remote/firmwareFetcher';
+import { StepData } from '@/types/Step';
+import { downloadData } from '@/utils/download';
+import EspController from './EspController';
+
+export function useEspOperations() {
+  const [stepData, setStepData] = useState<StepData[]>([]);
+  const [isRunning, setIsRunning] = useState(false);
+
+  const updateStepData = (step: string, data: Partial<StepData>) => {
+    setStepData((oldStepData) =>
+      oldStepData.map((oldData) => {
+        if (oldData.name === step) {
+          return { ...oldData, ...data };
+        }
+        return oldData;
+      }),
+    );
+  };
+
+  const wrapWithRunning =
+    <Args extends unknown[], T>(fn: (...a: Args) => Promise<T>) =>
+    async (...a: Args) => {
+      setIsRunning(true);
+      return fn(...a).finally(() => setIsRunning(false));
+    };
+
+  // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-constraint
+  const wrapWithStep = async <T extends unknown>(
+    stepName: string,
+    fn: () => Promise<T>,
+  ): Promise<T> => {
+    updateStepData(stepName, { status: 'running' });
+    const res = await fn().catch((e) => {
+      updateStepData(stepName, {
+        status: 'failed',
+        error: e,
+      });
+      throw e;
+    });
+    updateStepData(stepName, { status: 'success' });
+    return res;
+  };
+
+  const flashEnglishFirmware = async () => {
+    setStepData([
+      { name: 'Download firmware', status: 'pending' },
+      { name: 'Connect device', status: 'pending' },
+      { name: 'Flash OTA partition', status: 'pending' },
+      { name: 'Flash OTA_0 partition', status: 'pending' },
+      { name: 'Reset device', status: 'pending' },
+    ]);
+
+    const firmwareFile = await wrapWithStep('Download firmware', () =>
+      getFirmware('3.0.8'),
+    );
+
+    const espController = await wrapWithStep('Connect device', async () => {
+      const c = await EspController.fromRequestedDevice();
+      await c.connect();
+      return c;
+    });
+
+    await wrapWithStep('Flash OTA partition', () =>
+      espController.writeEmptyOtaPartition((_, p, t) =>
+        updateStepData('Flash OTA partition', {
+          progress: { current: p, total: t },
+        }),
+      ),
+    );
+
+    await wrapWithStep('Flash OTA_0 partition', () =>
+      espController.writeOta0(firmwareFile, (_, p, t) =>
+        updateStepData('Flash OTA_0 partition', {
+          progress: { current: p, total: t },
+        }),
+      ),
+    );
+
+    await wrapWithStep('Reset device', espController.disconnect);
+  };
+
+  const saveFullFlash = async () => {
+    setStepData([
+      { name: 'Connect device', status: 'pending' },
+      { name: 'Read flash', status: 'pending' },
+      { name: 'Disconnect device', status: 'pending' },
+    ]);
+
+    const espController = await wrapWithStep('Connect device', async () => {
+      const c = await EspController.fromRequestedDevice();
+      await c.connect();
+      return c;
+    });
+
+    const firmwareFile = await wrapWithStep('Read flash', () =>
+      espController.readFullFlash((_, p, t) =>
+        updateStepData('Read flash', { progress: { current: p, total: t } }),
+      ),
+    );
+
+    await wrapWithStep('Disconnect device', () =>
+      espController.disconnect({ skipReset: true }),
+    );
+
+    downloadData(firmwareFile, 'flash.bin', 'application/octet-stream');
+  };
+
+  const writeFullFlash = async (getFile: () => File | undefined) => {
+    setStepData([
+      { name: 'Read file', status: 'pending' },
+      { name: 'Connect device', status: 'pending' },
+      { name: 'Write flash', status: 'pending' },
+      { name: 'Reset device', status: 'pending' },
+    ]);
+
+    const fileData = await wrapWithStep('Read file', async () => {
+      const file = getFile();
+      if (!file) {
+        throw new Error('File not found');
+      }
+      return new Uint8Array(await file.arrayBuffer());
+    });
+
+    const espController = await wrapWithStep('Connect device', async () => {
+      const c = await EspController.fromRequestedDevice();
+      await c.connect();
+      return c;
+    });
+
+    await wrapWithStep('Write flash', () =>
+      espController.writeFullFlash(fileData, (_, p, t) =>
+        updateStepData('Write flash', { progress: { current: p, total: t } }),
+      ),
+    );
+
+    await wrapWithStep('Reset device', espController.disconnect);
+  };
+
+  const debugSteps2 = async () => {
+    setStepData([
+      { name: 'Read file', status: 'pending' },
+      { name: 'Connect device', status: 'pending' },
+      { name: 'Write flash', status: 'pending' },
+      { name: 'Reset device', status: 'pending' },
+    ]);
+
+    await wrapWithStep(
+      'Read file',
+      () =>
+        new Promise((resolve) => {
+          setTimeout(resolve, 100);
+        }),
+    );
+
+    await wrapWithStep(
+      'Connect device',
+      () =>
+        new Promise((resolve) => {
+          setTimeout(resolve, 500);
+        }),
+    );
+
+    await wrapWithStep(
+      'Write flash',
+      () =>
+        new Promise((resolve, reject) => {
+          let value = 0;
+          const interval = setInterval(() => {
+            if (value > 1) {
+              clearInterval(interval);
+              resolve(undefined);
+              return;
+            }
+
+            if (value > 0.2) {
+              clearInterval(interval);
+              reject(new Error('Whoops, failed!'));
+              return;
+            }
+
+            value += 0.001;
+            updateStepData('Write flash', {
+              progress: { current: value * 1000000, total: 1000000 },
+            });
+          }, 20);
+        }),
+    );
+
+    await wrapWithStep(
+      'Reset device',
+      () =>
+        new Promise((resolve) => {
+          setTimeout(resolve, 500);
+        }),
+    );
+  };
+
+  return {
+    stepData,
+    isRunning,
+    actions: {
+      flashEnglishFirmware: wrapWithRunning(flashEnglishFirmware),
+      saveFullFlash: wrapWithRunning(saveFullFlash),
+      writeFullFlash: wrapWithRunning(writeFullFlash),
+      debugSteps2: wrapWithRunning(debugSteps2),
+    },
+  };
+}
