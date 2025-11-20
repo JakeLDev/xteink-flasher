@@ -48,7 +48,7 @@ export function useEspOperations() {
   const flashEnglishFirmware = async () => {
     setStepData([
       { name: 'Download firmware', status: 'pending' },
-      { name: 'Connect device', status: 'pending' },
+      { name: 'Connect to device', status: 'pending' },
       { name: 'Flash OTA partition', status: 'pending' },
       { name: 'Flash OTA_0 partition', status: 'pending' },
       { name: 'Reset device', status: 'pending' },
@@ -58,7 +58,7 @@ export function useEspOperations() {
       getFirmware('3.0.8'),
     );
 
-    const espController = await wrapWithStep('Connect device', async () => {
+    const espController = await wrapWithStep('Connect to device', async () => {
       const c = await EspController.fromRequestedDevice();
       await c.connect();
       return c;
@@ -85,12 +85,12 @@ export function useEspOperations() {
 
   const saveFullFlash = async () => {
     setStepData([
-      { name: 'Connect device', status: 'pending' },
+      { name: 'Connect to device', status: 'pending' },
       { name: 'Read flash', status: 'pending' },
-      { name: 'Disconnect device', status: 'pending' },
+      { name: 'Disconnect from device', status: 'pending' },
     ]);
 
-    const espController = await wrapWithStep('Connect device', async () => {
+    const espController = await wrapWithStep('Connect to device', async () => {
       const c = await EspController.fromRequestedDevice();
       await c.connect();
       return c;
@@ -102,7 +102,7 @@ export function useEspOperations() {
       ),
     );
 
-    await wrapWithStep('Disconnect device', () =>
+    await wrapWithStep('Disconnect from device', () =>
       espController.disconnect({ skipReset: true }),
     );
 
@@ -112,7 +112,7 @@ export function useEspOperations() {
   const writeFullFlash = async (getFile: () => File | undefined) => {
     setStepData([
       { name: 'Read file', status: 'pending' },
-      { name: 'Connect device', status: 'pending' },
+      { name: 'Connect to device', status: 'pending' },
       { name: 'Write flash', status: 'pending' },
       { name: 'Reset device', status: 'pending' },
     ]);
@@ -125,7 +125,7 @@ export function useEspOperations() {
       return new Uint8Array(await file.arrayBuffer());
     });
 
-    const espController = await wrapWithStep('Connect device', async () => {
+    const espController = await wrapWithStep('Connect to device', async () => {
       const c = await EspController.fromRequestedDevice();
       await c.connect();
       return c;
@@ -143,7 +143,7 @@ export function useEspOperations() {
   const debugSteps2 = async () => {
     setStepData([
       { name: 'Read file', status: 'pending' },
-      { name: 'Connect device', status: 'pending' },
+      { name: 'Connect to device', status: 'pending' },
       { name: 'Write flash', status: 'pending' },
       { name: 'Reset device', status: 'pending' },
     ]);
@@ -157,7 +157,7 @@ export function useEspOperations() {
     );
 
     await wrapWithStep(
-      'Connect device',
+      'Connect to device',
       () =>
         new Promise((resolve) => {
           setTimeout(resolve, 500);
