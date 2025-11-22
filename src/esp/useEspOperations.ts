@@ -50,8 +50,9 @@ export function useEspOperations() {
     setStepData([
       { name: 'Connect to device', status: 'pending' },
       { name: 'Download firmware', status: 'pending' },
-      { name: 'Flash OTA partition', status: 'pending' },
-      { name: 'Flash OTA_0 partition', status: 'pending' },
+      { name: 'Read otadata partition', status: 'pending' },
+      { name: 'Flash app partition', status: 'pending' },
+      { name: 'Flash otadata partition', status: 'pending' },
       { name: 'Reset device', status: 'pending' },
     ]);
 
@@ -65,17 +66,32 @@ export function useEspOperations() {
       getFirmware(version),
     );
 
-    await wrapWithStep('Flash OTA partition', () =>
-      espController.writeEmptyOtaPartition((_, p, t) =>
-        updateStepData('Flash OTA partition', {
+    const otaPartition = await wrapWithStep('Read otadata partition', () =>
+      espController.readOtadataPartition((_, p, t) =>
+        updateStepData('Read otadata partition', {
           progress: { current: p, total: t },
         }),
       ),
     );
 
-    await wrapWithStep('Flash OTA_0 partition', () =>
-      espController.writeOta0(firmwareFile, (_, p, t) =>
-        updateStepData('Flash OTA_0 partition', {
+    const backupPartitionLabel = otaPartition.getCurrentBackupPartitionLabel();
+    const flashAppPartitionStepName = `Flash app partition (${backupPartitionLabel})`;
+    updateStepData('Flash app partition', { name: flashAppPartitionStepName });
+    await wrapWithStep(flashAppPartitionStepName, () =>
+      espController.writeAppPartition(
+        backupPartitionLabel,
+        firmwareFile,
+        (_, p, t) =>
+          updateStepData(flashAppPartitionStepName, {
+            progress: { current: p, total: t },
+          }),
+      ),
+    );
+
+    otaPartition.setBootPartition(backupPartitionLabel);
+    await wrapWithStep('Flash otadata partition', () =>
+      espController.writeOtadataPartition(otaPartition, (_, p, t) =>
+        updateStepData('Flash otadata partition', {
           progress: { current: p, total: t },
         }),
       ),
