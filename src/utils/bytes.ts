@@ -12,9 +12,9 @@ export function u32ToLeBytes(u32: number) {
 export function leBytesToU32(bytes: Uint8Array) {
   return (
     (bytes.at(0) ?? 0) +
-    ((bytes.at(1) ?? 0) << 8) +
-    ((bytes.at(2) ?? 0) << 16) +
-    ((bytes.at(3) ?? 0) << 24)
+    (((bytes.at(1) ?? 0) << 8) >>> 0) +
+    (((bytes.at(2) ?? 0) << 16) >>> 0) +
+    (((bytes.at(3) ?? 0) << 24) >>> 0)
   );
 }
 
