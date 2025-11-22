@@ -17,8 +17,8 @@ import { useEspOperations } from '@/esp/useEspOperations';
 
 export default function Home() {
   const { actions, stepData, isRunning } = useEspOperations();
-  const fileInput = useRef<FileUploadHandle>(null);
-  const getFile = () => fileInput.current?.getFile();
+  const fullFlashFileInput = useRef<FileUploadHandle>(null);
+  const appPartitionFileInput = useRef<FileUploadHandle>(null);
 
   return (
     <Flex direction="column" gap="20px">
@@ -74,12 +74,16 @@ export default function Home() {
           </Button>
           <Stack direction="row">
             <Flex grow={1}>
-              <FileUpload ref={fileInput} />
+              <FileUpload ref={fullFlashFileInput} />
             </Flex>
             <Button
               variant="subtle"
               flexGrow={1}
-              onClick={() => actions.writeFullFlash(getFile)}
+              onClick={() =>
+                actions.writeFullFlash(() =>
+                  fullFlashFileInput.current?.getFile(),
+                )
+              }
               disabled={isRunning}
             >
               Write full flash from file
@@ -121,6 +125,23 @@ export default function Home() {
           >
             Flash Chinese firmware (3.0.7)
           </Button>
+          <Stack direction="row">
+            <Flex grow={1}>
+              <FileUpload ref={appPartitionFileInput} />
+            </Flex>
+            <Button
+              variant="subtle"
+              flexGrow={1}
+              onClick={() =>
+                actions.flashCustomFirmware(() =>
+                  appPartitionFileInput.current?.getFile(),
+                )
+              }
+              disabled={isRunning}
+            >
+              Flash firmware from file
+            </Button>
+          </Stack>
           {process.env.NODE_ENV === 'development' && (
             <Button
               variant="subtle"

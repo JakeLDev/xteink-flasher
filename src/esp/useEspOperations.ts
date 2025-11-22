@@ -20,7 +20,9 @@ export function useEspOperations() {
       return fn(...a).finally(() => setIsRunning(false));
     };
 
-  const flashFirmware = async (version: Parameters<typeof getFirmware>[0]) => {
+  const flashRemoteFirmware = async (
+    version: Parameters<typeof getFirmware>[0],
+  ) => {
     initializeSteps([
       'Connect to device',
       'Download firmware',
@@ -81,8 +83,73 @@ export function useEspOperations() {
     await runStep('Reset device', () => espController.disconnect());
   };
 
-  const flashEnglishFirmware = async () => flashFirmware('3.0.8-EN');
-  const flashChineseFirmware = async () => flashFirmware('3.0.7-CH');
+  const flashEnglishFirmware = async () => flashRemoteFirmware('3.0.8-EN');
+  const flashChineseFirmware = async () => flashRemoteFirmware('3.0.7-CH');
+
+  const flashCustomFirmware = async (getFile: () => File | undefined) => {
+    initializeSteps([
+      'Read file',
+      'Connect to device',
+      'Read otadata partition',
+      'Flash app partition',
+      'Flash otadata partition',
+      'Reset device',
+    ]);
+
+    const fileData = await runStep('Read file', async () => {
+      const file = getFile();
+      if (!file) {
+        throw new Error('File not found');
+      }
+      return new Uint8Array(await file.arrayBuffer());
+    });
+
+    const espController = await runStep('Connect to device', async () => {
+      const c = await EspController.fromRequestedDevice();
+      await c.connect();
+      return c;
+    });
+
+    const [otaPartition, backupPartitionLabel] = await runStep(
+      'Read otadata partition',
+      async (): Promise<
+        [OtaPartition, OtaPartitionDetails['partitionLabel']]
+      > => {
+        const partition = await espController.readOtadataPartition((_, p, t) =>
+          updateStepData('Read otadata partition', {
+            progress: { current: p, total: t },
+          }),
+        );
+
+        return [partition, partition.getCurrentBackupPartitionLabel()];
+      },
+    );
+
+    const flashAppPartitionStepName = `Flash app partition (${backupPartitionLabel})`;
+    updateStepData('Flash app partition', { name: flashAppPartitionStepName });
+    await runStep(flashAppPartitionStepName, () =>
+      espController.writeAppPartition(
+        backupPartitionLabel,
+        fileData,
+        (_, p, t) =>
+          updateStepData(flashAppPartitionStepName, {
+            progress: { current: p, total: t },
+          }),
+      ),
+    );
+
+    await runStep('Flash otadata partition', async () => {
+      otaPartition.setBootPartition(backupPartitionLabel);
+
+      await espController.writeOtadataPartition(otaPartition, (_, p, t) =>
+        updateStepData('Flash otadata partition', {
+          progress: { current: p, total: t },
+        }),
+      );
+    });
+
+    await runStep('Reset device', () => espController.disconnect());
+  };
 
   const saveFullFlash = async () => {
     initializeSteps([
@@ -280,6 +347,7 @@ export function useEspOperations() {
     actions: {
       flashEnglishFirmware: wrapWithRunning(flashEnglishFirmware),
       flashChineseFirmware: wrapWithRunning(flashChineseFirmware),
+      flashCustomFirmware: wrapWithRunning(flashCustomFirmware),
       saveFullFlash: wrapWithRunning(saveFullFlash),
       writeFullFlash: wrapWithRunning(writeFullFlash),
       fakeWriteFullFlash: wrapWithRunning(fakeWriteFullFlash),
