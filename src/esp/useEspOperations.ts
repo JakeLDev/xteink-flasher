@@ -84,7 +84,7 @@ export function useEspOperations() {
   };
 
   const flashEnglishFirmware = async () => flashRemoteFirmware('3.0.8-EN');
-  const flashChineseFirmware = async () => flashRemoteFirmware('3.0.7-CH');
+  const flashChineseFirmware = async () => flashRemoteFirmware('3.0.8-CH');
 
   const flashCustomFirmware = async (getFile: () => File | undefined) => {
     initializeSteps([
