@@ -83,7 +83,7 @@ export function useEspOperations() {
     await runStep('Reset device', () => espController.disconnect());
   };
 
-  const flashEnglishFirmware = async () => flashRemoteFirmware('3.0.8-EN');
+  const flashEnglishFirmware = async () => flashRemoteFirmware('3.1.0-EN');
   const flashChineseFirmware = async () => flashRemoteFirmware('3.0.8-CH');
 
   const flashCustomFirmware = async (getFile: () => File | undefined) => {
