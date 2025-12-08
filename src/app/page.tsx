@@ -125,6 +125,13 @@ export default function Home() {
           >
             Flash Chinese firmware (3.1.1)
           </Button>
+          <Button
+            variant="subtle"
+            onClick={actions.flashCrossPointFirmware}
+            disabled={isRunning}
+          >
+            Flash CrossPoint firmware (Community)
+          </Button>
           <Stack direction="row">
             <Flex grow={1}>
               <FileUpload ref={appPartitionFileInput} />

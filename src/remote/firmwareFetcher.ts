@@ -15,3 +15,23 @@ export async function getOfficialFirmware(
   const response = await fetch(url);
   return new Uint8Array(await response.arrayBuffer());
 }
+
+export async function getCommunityFirmware(firmware: 'CrossPoint') {
+  if (firmware === 'CrossPoint') {
+    const releaseData = await fetch(
+      'https://api.github.com/repos/daveallie/crosspoint-reader/releases/latest',
+    ).then((resp) => resp.json());
+
+    const firmwareAsset = releaseData.assets.find((asset: any) =>
+      asset.name.endsWith('firmware.bin'),
+    );
+    if (!firmwareAsset) {
+      throw new Error('CrossPoint firmware asset not found');
+    }
+    const url: string = firmwareAsset.browser_download_url;
+    const response = await fetch(url);
+    return new Uint8Array(await response.arrayBuffer());
+  }
+
+  throw new Error('Unsupported community firmware');
+}

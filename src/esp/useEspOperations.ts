@@ -1,7 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { getOfficialFirmware } from '@/remote/firmwareFetcher';
+import {
+  getCommunityFirmware,
+  getOfficialFirmware,
+} from '@/remote/firmwareFetcher';
 import { downloadData } from '@/utils/download';
 import { wrapWithWakeLock } from '@/utils/wakelock';
 import OtaPartition, { OtaPartitionDetails } from './OtaPartition';
@@ -85,6 +88,8 @@ export function useEspOperations() {
     flashRemoteFirmware(() => getOfficialFirmware('3.1.1-EN'));
   const flashChineseFirmware = async () =>
     flashRemoteFirmware(() => getOfficialFirmware('3.1.1-CH'));
+  const flashCrossPointFirmware = async () =>
+    flashRemoteFirmware(() => getCommunityFirmware('CrossPoint'));
 
   const flashCustomFirmware = async (getFile: () => File | undefined) => {
     initializeSteps([
@@ -375,6 +380,7 @@ export function useEspOperations() {
     actions: {
       flashEnglishFirmware: wrapWithRunning(flashEnglishFirmware),
       flashChineseFirmware: wrapWithRunning(flashChineseFirmware),
+      flashCrossPointFirmware: wrapWithRunning(flashCrossPointFirmware),
       flashCustomFirmware: wrapWithRunning(flashCustomFirmware),
       saveFullFlash: wrapWithRunning(saveFullFlash),
       writeFullFlash: wrapWithRunning(writeFullFlash),
