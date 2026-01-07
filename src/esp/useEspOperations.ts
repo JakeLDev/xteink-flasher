@@ -517,7 +517,7 @@ export function useEspOperations() {
     const currentBoot = otaPartition.getCurrentBootPartitionLabel();
 
     const readAndIdentifyInChunks = async (partitionLabel: 'app0' | 'app1') => {
-      const chunkSize = 0x3c00; // 15KB
+      const chunkSize = 0x6400; // 25KB
       const maxReadSize = 0x20000; // 128KB
       let readData = new Uint8Array();
       let info: FirmwareInfo | undefined;
@@ -530,7 +530,9 @@ export function useEspOperations() {
             offset,
             onPacketReceived: (_, p, t) =>
               updateStepData(`Read ${partitionLabel} partition`, {
-                progress: { current: offset + p, total: maxReadSize },
+                // Show cumulative progress: offset + current chunk progress
+                // Total shows the end of current chunk range
+                progress: { current: offset + p, total: offset + t },
               }),
           },
         );
@@ -546,7 +548,7 @@ export function useEspOperations() {
         }
       }
 
-      return info ?? { type: 'Unknown', version: 'Unknown' }; // Return the last identification result if not found
+      return info ?? { type: 'unknown', version: 'unknown', displayName: 'Custom/Unknown Firmware' }; // Return the last identification result if not found
     };
 
     const app0Info = await runStep('Read app0 partition', () =>

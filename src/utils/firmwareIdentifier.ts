@@ -5,17 +5,21 @@ export interface FirmwareInfo {
 }
 
 /**
- * Find a string in binary data
+ * Find a string in binary data and return its offset, or -1 if not found
  */
-function findString(data: Uint8Array, searchString: string): boolean {
+function findString(
+  data: Uint8Array,
+  searchString: string,
+  startOffset = 0,
+): number {
   const encoder = new TextEncoder();
   const searchBytes = encoder.encode(searchString);
 
   if (data.length < searchBytes.length) {
-    return false;
+    return -1;
   }
 
-  for (let i = 0; i <= data.length - searchBytes.length; i++) {
+  for (let i = startOffset; i <= data.length - searchBytes.length; i++) {
     let match = true;
     for (let j = 0; j < searchBytes.length; j++) {
       if (data[i + j] !== searchBytes[j]) {
@@ -24,25 +28,57 @@ function findString(data: Uint8Array, searchString: string): boolean {
       }
     }
     if (match) {
-      return true;
+      return i;
     }
   }
 
-  return false;
+  return -1;
+}
+
+/**
+ * Validate ESP32 firmware image structure
+ */
+function isValidEsp32Image(data: Uint8Array): boolean {
+  if (data.length < 0x24) {
+    return false;
+  }
+
+  // Check ESP32 image magic byte at offset 0
+  const imageMagic = data[0];
+  if (imageMagic !== 0xe9) {
+    return false;
+  }
+
+  // Check app descriptor magic at offset 0x20
+  const view = new DataView(data.buffer, data.byteOffset);
+  const descriptorMagic = view.getUint32(0x20, true); // little-endian
+  if (descriptorMagic !== 0xabcd5432) {
+    return false;
+  }
+
+  return true;
 }
 
 /**
  * Extract version string from firmware binary
- * Looks for both "V*.*.* " pattern (official) and "*.*.* " pattern (CrossPoint)
+ * Looks for V*.*.* pattern in official firmwares, and numeric patterns for community firmwares
+ *
+ * @param data - The firmware binary data
+ * @param searchLimit - How many bytes to search (default 25KB)
+ * @returns Version string or 'unknown' if not found
  */
-function extractVersion(data: Uint8Array): string {
+function extractVersion(data: Uint8Array, searchLimit = 25000): string {
   const decoder = new TextDecoder('utf-8', { fatal: false });
+  const searchArea = data.slice(0, Math.min(data.length, searchLimit));
 
   // Try to find V-pattern versions (official firmware)
-  for (let i = 0; i < Math.min(data.length - 8, 100000); i++) {
-    if (data[i] === 0x56) {
+  // Pattern: [any byte]<V3.1.1 or similar
+  for (let i = 0; i < searchArea.length - 8; i++) {
+    if (searchArea[i] === 0x56) {
       // 'V' character
-      const chunk = decoder.decode(data.slice(i, Math.min(i + 10, data.length)));
+      const chunk = decoder.decode(
+        searchArea.slice(i, Math.min(i + 10, searchArea.length)),
+      );
       const match = chunk.match(/V\d+\.\d+\.\d+/);
       if (match) {
         return match[0];
@@ -52,22 +88,19 @@ function extractVersion(data: Uint8Array): string {
 
   // Try to find numeric versions (CrossPoint: 0.12.0, etc.)
   try {
-    const fullString = decoder.decode(data);
+    const fullString = decoder.decode(searchArea);
     const lines = fullString.split(/[\x00\n]/);
     for (const line of lines) {
       const match = line.match(/^\d+\.\d+\.\d+$/);
-      if (match && !line.includes('.')) {
-        // Make sure it's actually a version number, not part of a path
-        if (line.match(/^[0-9]+\.[0-9]+\.[0-9]+$/)) {
-          return match[0];
-        }
+      if (match) {
+        return match[0];
       }
     }
 
     // Also search for version in common patterns
     const versionMatch = fullString.match(/(?:Version[:\s]*)(\d+\.\d+\.\d+)/i);
-    if (versionMatch) {
-      return versionMatch[1];
+    if (versionMatch?.[1]) {
+      return versionMatch[1] as string;
     }
   } catch {
     // Decoding failed, continue
@@ -78,39 +111,73 @@ function extractVersion(data: Uint8Array): string {
 
 /**
  * Identify firmware type and extract version information
- * This function analyzes the binary to determine if it's Official English,
- * Official Chinese, CrossPoint, or Unknown firmware
+ * Uses robust proximity-based pattern matching for official firmwares
+ *
+ * Detection strategy:
+ * 1. Validate ESP32 image structure
+ * 2. Find version string (V3.x.x pattern)
+ * 3. Check what appears after the version:
+ *    - If "XTOS " appears within 20 bytes → Chinese firmware
+ *    - If "End of English" found anywhere → English firmware
+ * 4. Check for CrossPoint patterns
  *
  * @param firmwareData - The raw firmware binary data
  * @returns FirmwareInfo object with type, version, and display name
  */
 export function identifyFirmware(firmwareData: Uint8Array): FirmwareInfo {
-  // Check for Official English firmware
-  if (findString(firmwareData, 'End of English')) {
-    return {
-      type: 'official-english',
-      version: extractVersion(firmwareData),
-      displayName: 'Official English',
-    };
-  }
+  // Validate it's a real ESP32 firmware image
+  const isValidImage = isValidEsp32Image(firmwareData);
 
-  // Check for Official Chinese firmware
-  if (findString(firmwareData, 'XTOS')) {
-    return {
-      type: 'official-chinese',
-      version: extractVersion(firmwareData),
-      displayName: 'Official Chinese',
-    };
+  // Search in first 25KB for version (official firmwares have it early)
+  const searchLimit = 25000;
+  const searchArea = firmwareData.slice(
+    0,
+    Math.min(firmwareData.length, searchLimit),
+  );
+
+  // Try to find version string
+  const version = extractVersion(searchArea);
+  const hasVersion = version !== 'unknown';
+
+  // Find version location for proximity checks (only if we found a version)
+  const versionOffset = hasVersion ? findString(searchArea, version) : -1;
+
+  if (versionOffset !== -1) {
+    // Check area after version (next 50 bytes) for type indicators
+    const areaAfterVersion = searchArea.slice(
+      versionOffset,
+      Math.min(versionOffset + 50, searchArea.length),
+    );
+
+    // Chinese firmware has "XTOS " (with trailing space) right after version
+    if (findString(areaAfterVersion, 'XTOS ') !== -1) {
+      return {
+        type: 'official-chinese',
+        version: version,
+        displayName: 'Official Chinese',
+      };
+    }
+
+    // English firmware has "End of English" marker and no XTOS near version
+    if (findString(searchArea, 'End of English') !== -1) {
+      return {
+        type: 'official-english',
+        version: version,
+        displayName: 'Official English',
+      };
+    }
   }
 
   // Check for CrossPoint Community firmware
   if (
-    findString(firmwareData, 'CrossPoint-ESP32-') ||
-    findString(firmwareData, 'Starting CrossPoint version')
+    findString(firmwareData, 'CrossPoint-ESP32-') !== -1 ||
+    findString(firmwareData, 'Starting CrossPoint version') !== -1
   ) {
+    // Try a deeper search for CrossPoint version
+    const cpVersion = hasVersion ? version : extractVersion(firmwareData, 100000);
     return {
       type: 'crosspoint',
-      version: extractVersion(firmwareData),
+      version: cpVersion,
       displayName: 'CrossPoint Community Reader',
     };
   }
@@ -118,7 +185,7 @@ export function identifyFirmware(firmwareData: Uint8Array): FirmwareInfo {
   // Unknown firmware
   return {
     type: 'unknown',
-    version: extractVersion(firmwareData),
+    version: version,
     displayName: 'Custom/Unknown Firmware',
   };
 }

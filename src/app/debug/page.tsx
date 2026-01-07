@@ -3,6 +3,7 @@
 import React, { ReactNode, useState } from 'react';
 import {
   Alert,
+  Badge,
   Button,
   Card,
   CloseButton,
@@ -238,20 +239,14 @@ function FirmwareIdentificationDebug({
             colorPalette={getColorPalette(info.type)}
           >
             <Card.Header>
-              <Heading size="md">
-                Partition {label}
+              <Flex alignItems="center" gap={2}>
+                <Heading size="md">Partition {label}</Heading>
                 {label === currentBoot && (
-                  <Mark
-                    colorPalette="green"
-                    variant="solid"
-                    marginLeft={2}
-                    paddingLeft={1}
-                    paddingRight={1}
-                  >
-                    (currently booting)
-                  </Mark>
+                  <Badge colorPalette="green" variant="solid" size="sm">
+                    Active
+                  </Badge>
                 )}
-              </Heading>
+              </Flex>
             </Card.Header>
             <Card.Body>
               <Stack gap={2}>

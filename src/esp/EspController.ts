@@ -104,10 +104,10 @@ export default class EspController {
     return this.espLoader.readFlash(offset, 0x640000, onPacketReceived);
   }
 
-  async readAppPartitionForIdentification(
+    async readAppPartitionForIdentification(
     partitionLabel: 'app0' | 'app1',
     {
-      readSize = 0x3c00, // Default to 15KB (0x3C00) for fast identification
+      readSize = 0x6400, // Default to 25KB (0x6400) for fast identification
       offset = 0,
       onPacketReceived,
     }: {
