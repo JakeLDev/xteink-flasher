@@ -121,8 +121,8 @@ export default class EspController {
     } = {},
   ) {
     // Optimized read for firmware identification with flexible read size and offset:
-    // - Default (15KB / 0x3C00): Fast path, covers 99% of cases
-    // - Additional chunks: Specify offset multiples of 15KB until identification succeeds
+    // - Default (25KB / 0x6400): Fast path, covers 99% of cases
+    // - Additional chunks: Specify offset multiples of 25KB until identification succeeds
     //
     // Identifier locations:
     // - Version strings (V3.1.1, 0.12.0): 0x1A40-0x1A4C (~6.7KB)

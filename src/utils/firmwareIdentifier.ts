@@ -89,6 +89,13 @@ function extractVersion(data: Uint8Array, searchLimit = 25000): string {
   // Try to find numeric versions (CrossPoint: 0.12.0, etc.)
   try {
     const fullString = decoder.decode(searchArea);
+    
+    // Check for CrossPoint-ESP32-x.x.x pattern
+    const crossPointMatch = fullString.match(/CrossPoint-ESP32-(\d+\.\d+\.\d+)/);
+    if (crossPointMatch) {
+      return crossPointMatch[1]!;
+    }
+    
     const lines = fullString.split(/[\x00\n]/);
     for (const line of lines) {
       const match = line.match(/^\d+\.\d+\.\d+$/);
@@ -111,14 +118,14 @@ function extractVersion(data: Uint8Array, searchLimit = 25000): string {
 
 /**
  * Identify firmware type and extract version information
- * Uses robust proximity-based pattern matching for official firmwares
+ * Uses XTOS proximity check as the sole discriminator for official firmwares
  *
  * Detection strategy:
  * 1. Validate ESP32 image structure
  * 2. Find version string (V3.x.x pattern)
  * 3. Check what appears after the version:
- *    - If "XTOS " appears within 20 bytes → Chinese firmware
- *    - If "End of English" found anywhere → English firmware
+ *    - If "XTOS " appears within 50 bytes → Chinese firmware
+ *    - If no "XTOS " and valid ESP32 image → English firmware
  * 4. Check for CrossPoint patterns
  *
  * @param firmwareData - The raw firmware binary data
@@ -142,8 +149,9 @@ export function identifyFirmware(firmwareData: Uint8Array): FirmwareInfo {
   // Find version location for proximity checks (only if we found a version)
   const versionOffset = hasVersion ? findString(searchArea, version) : -1;
 
-  if (versionOffset !== -1) {
-    // Check area after version (next 50 bytes) for type indicators
+  // Check for official firmwares using XTOS proximity
+  if (versionOffset !== -1 && version.startsWith('V') && isValidImage) {
+    // Check area after version (next 50 bytes) for XTOS indicator
     const areaAfterVersion = searchArea.slice(
       versionOffset,
       Math.min(versionOffset + 50, searchArea.length),
@@ -158,14 +166,13 @@ export function identifyFirmware(firmwareData: Uint8Array): FirmwareInfo {
       };
     }
 
-    // English firmware has "End of English" marker and no XTOS near version
-    if (findString(searchArea, 'End of English') !== -1) {
-      return {
-        type: 'official-english',
-        version: version,
-        displayName: 'Official English',
-      };
-    }
+    // English firmware has NO XTOS after version
+    // If we have a V-pattern version, valid ESP32 image, but no XTOS → English
+    return {
+      type: 'official-english',
+      version: version,
+      displayName: 'Official English',
+    };
   }
 
   // Check for CrossPoint Community firmware
