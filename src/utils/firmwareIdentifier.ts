@@ -157,8 +157,8 @@ export function identifyFirmware(firmwareData: Uint8Array): FirmwareInfo {
       Math.min(versionOffset + 50, searchArea.length),
     );
 
-    // Chinese firmware has "XTOS " (with trailing space) right after version
-    if (findString(areaAfterVersion, 'XTOS ') !== -1) {
+    // Chinese firmware has "XTOS" right after version
+    if (findString(areaAfterVersion, 'XTOS') !== -1) {
       return {
         type: 'official-chinese',
         version: version,
