@@ -89,13 +89,13 @@ function extractVersion(data: Uint8Array, searchLimit = 25000): string {
   // Try to find numeric versions (CrossPoint: 0.12.0, etc.)
   try {
     const fullString = decoder.decode(searchArea);
-    
+
     // Check for CrossPoint-ESP32-x.x.x pattern
     const crossPointMatch = fullString.match(/CrossPoint-ESP32-(\d+\.\d+\.\d+)/);
     if (crossPointMatch) {
       return crossPointMatch[1]!;
     }
-    
+
     const lines = fullString.split(/[\x00\n]/);
     for (const line of lines) {
       const match = line.match(/^\d+\.\d+\.\d+$/);

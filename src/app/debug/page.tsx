@@ -272,8 +272,9 @@ function FirmwareIdentificationDebug({
 }
 
 export default function Debug() {
-  const { debugActions, stepData, isRunning } = useEspOperations();
+  const { actions, debugActions, stepData, isRunning } = useEspOperations();
   const [debugOutputNode, setDebugOutputNode] = useState<ReactNode>(null);
+  const appPartitionFileInput = React.useRef<FileUploadHandle>(null);
 
   return (
     <Flex direction="column" gap="20px">
@@ -366,84 +367,25 @@ export default function Debug() {
           >
             Swap boot partitions (app0 / app1)
           </Button>
-        </Stack>
-      </Stack>
-      <Separator />
-      <Stack gap={3} as="section">
-        <div>
-          <Heading size="xl">Overwrite current partition (Advanced)</Heading>
-          <Stack gap={1} color="grey" textStyle="sm">
-            <p>
-              These are advanced flashing options for users who want to flash
-              firmware directly to the currently selected partition, as opposed
-              to the backup partition.
-            </p>
-            <p>
-              <b>Flash to current partition</b> will download the firmware and
-              overwrite your current running firmware. The device will reboot
-              with the new firmware on the same partition.
-            </p>
-          </Stack>
-          <Alert.Root status="warning" marginTop={3}>
-            <Alert.Indicator />
-            <Alert.Content>
-              <Alert.Title>Warning: Current firmware will be overwritten</Alert.Title>
-              <Alert.Description>
-                Flashing to the current partition will overwrite the
-                currently used firmware and leave the backup partition unchanged.
-                Proceed with caution.
-              </Alert.Description>
-            </Alert.Content>
-          </Alert.Root>
-        </div>
-        <Stack as="section">
-          <Stack direction="row" gap={2}>
-            <Button
-              variant="subtle"
-              flexGrow={1}
-              onClick={actions.flashEnglishFirmware}
-              disabled={isRunning}
-            >
-              Flash English (3.1.1) to current
-            </Button>
-          </Stack>
-          <Stack direction="row" gap={2}>
-            <Button
-              variant="subtle"
-              flexGrow={1}
-              onClick={actions.flashChineseFirmware}
-              disabled={isRunning}
-            >
-              Flash Chinese (3.1.5) to current
-            </Button>
-          </Stack>
-          <Stack direction="row" gap={2}>
-            <Button
-              variant="subtle"
-              flexGrow={1}
-              onClick={actions.flashCrossPointFirmware}
-              disabled={isRunning}
-            >
-              Flash CrossPoint firmware (Community) to current
-            </Button>
-          </Stack>
-          <Stack direction="row" gap={2}>
-            <Flex grow={1}>
-              <FileUpload ref={appPartitionFileInput} />
-            </Flex>
-            <Button
-              variant="subtle"
-              flexGrow={1}
-              onClick={() =>
-                actions.flashCustomFirmware(() =>
-                  appPartitionFileInput.current?.getFile(),
-                )
-              }
-              disabled={isRunning}
-            >
-              Flash file to current
-            </Button>
-          </Stack>
+          <Button
+            variant="subtle"
+            onClick={() => {
+              debugActions
+                .readAndIdentifyAllFirmware()
+                .then((data) =>
+                  setDebugOutputNode(
+                    <FirmwareIdentificationDebug
+                      app0={data.app0}
+                      app1={data.app1}
+                      currentBoot={data.currentBoot}
+                    />,
+                  ),
+                );
+            }}
+            disabled={isRunning}
+          >
+            Identify firmware in both partitions
+          </Button>
         </Stack>
       </Stack>
       <Separator />
