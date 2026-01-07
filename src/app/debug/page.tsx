@@ -272,9 +272,8 @@ function FirmwareIdentificationDebug({
 }
 
 export default function Debug() {
-  const { actions, debugActions, stepData, isRunning } = useEspOperations();
+  const { debugActions, stepData, isRunning } = useEspOperations();
   const [debugOutputNode, setDebugOutputNode] = useState<ReactNode>(null);
-  const appPartitionFileInput = React.useRef<FileUploadHandle>(null);
 
   return (
     <Flex direction="column" gap="20px">
@@ -366,25 +365,6 @@ export default function Debug() {
             disabled={isRunning}
           >
             Swap boot partitions (app0 / app1)
-          </Button>
-          <Button
-            variant="subtle"
-            onClick={() => {
-              debugActions
-                .readAndIdentifyAllFirmware()
-                .then((data) =>
-                  setDebugOutputNode(
-                    <FirmwareIdentificationDebug
-                      app0={data.app0}
-                      app1={data.app1}
-                      currentBoot={data.currentBoot}
-                    />,
-                  ),
-                );
-            }}
-            disabled={isRunning}
-          >
-            Identify firmware in both partitions
           </Button>
         </Stack>
       </Stack>
