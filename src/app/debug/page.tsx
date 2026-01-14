@@ -336,7 +336,7 @@ export default function Debug() {
               onClick={actions.flashChineseFirmware}
               disabled={isRunning}
             >
-              Flash Chinese (3.1.5) to current
+              Flash Chinese (3.1.7) to current
             </Button>
           </Stack>
           <Stack direction="row" gap={2}>
