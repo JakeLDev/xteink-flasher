@@ -123,12 +123,8 @@ export default class EspController {
     // Optimized read for firmware identification with flexible read size and offset:
     // - Default (25KB / 0x6400): Fast path, covers 99% of cases
     // - Additional chunks: Specify offset multiples of 25KB until identification succeeds
-    //
-    // Identifier locations:
-    // - Version strings (V3.1.1, 0.12.0): 0x1A40-0x1A4C (~6.7KB)
-    // - "End of English" marker: 0x2154 (~8.5KB)
-    // - "XTOS" marker: 0x1A54 (~6.7KB)
-    // - "CrossPoint" markers: 0x1614 (~5.6KB)
+    // In testing, most firmwares are identified within the first 25KB read, so reading the entire 
+    // partition is unnecessary in the majority of cases.
 
     const baseOffset = partitionLabel === 'app0' ? 0x10000 : 0x650000;
 

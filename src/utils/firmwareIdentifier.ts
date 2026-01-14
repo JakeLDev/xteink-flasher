@@ -119,6 +119,7 @@ function extractVersion(data: Uint8Array, searchLimit = 25000): string {
 /**
  * Identify firmware type and extract version information
  * Uses XTOS proximity check as the sole discriminator for official firmwares
+ * Unfortunately, inherently brittle, due to potential changes to the official firmware.
  *
  * Detection strategy:
  * 1. Validate ESP32 image structure
@@ -135,7 +136,7 @@ export function identifyFirmware(firmwareData: Uint8Array): FirmwareInfo {
   // Validate it's a real ESP32 firmware image
   const isValidImage = isValidEsp32Image(firmwareData);
 
-  // Search in first 25KB for version (official firmwares have it early)
+  // Search in first 25KB for version
   const searchLimit = 25000;
   const searchArea = firmwareData.slice(
     0,
@@ -180,11 +181,9 @@ export function identifyFirmware(firmwareData: Uint8Array): FirmwareInfo {
     findString(firmwareData, 'CrossPoint-ESP32-') !== -1 ||
     findString(firmwareData, 'Starting CrossPoint version') !== -1
   ) {
-    // Try a deeper search for CrossPoint version
-    const cpVersion = hasVersion ? version : extractVersion(firmwareData, 100000);
     return {
       type: 'crosspoint',
-      version: cpVersion,
+      version: version,
       displayName: 'CrossPoint Community Reader',
     };
   }
