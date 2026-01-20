@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import {
   Button,
   Heading,
@@ -14,11 +14,30 @@ import {
 import FileUpload, { FileUploadHandle } from '@/components/FileUpload';
 import Steps from '@/components/Steps';
 import { useEspOperations } from '@/esp/useEspOperations';
+import {
+  getOfficialFirmwareVersions,
+  getCommunityFirmwareRemoteData,
+} from '@/remote/firmwareFetcher';
 
 export default function Home() {
   const { actions, stepData, isRunning } = useEspOperations();
+  const [officialFirmwareVersions, setOfficialFirmwareVersions] = useState<{
+    en: string;
+    ch: string;
+  } | null>(null);
+  const [communityFirmwareVersions, setCommunityFirmwareVersions] = useState<{
+    crossPoint: { version: string; releaseDate: string };
+  } | null>(null);
   const fullFlashFileInput = useRef<FileUploadHandle>(null);
   const appPartitionFileInput = useRef<FileUploadHandle>(null);
+
+  useEffect(() => {
+    getOfficialFirmwareVersions().then((versions) =>
+      setOfficialFirmwareVersions(versions),
+    );
+
+    getCommunityFirmwareRemoteData().then(setCommunityFirmwareVersions);
+  }, []);
 
   return (
     <Flex direction="column" gap="20px">
@@ -29,10 +48,10 @@ export default function Home() {
           <Alert.Description>
             <Stack>
               <p>
-                I&apos;ve tried to make this foolproof and while the likelihood
-                of unrecoverable things going wrong is extremely low, it&apos;s
-                never zero. So proceed with care and make sure to grab a backup
-                using <b>Save full flash</b> before flashing your device.
+                I’ve tried to make this foolproof and while the likelihood of
+                unrecoverable things going wrong is extremely low, it’s never
+                zero. So proceed with care and make sure to grab a backup using{' '}
+                <b>Save full flash</b> before flashing your device.
               </p>
               <p>
                 Once you start <b>Write flash from file</b> or{' '}
@@ -56,10 +75,10 @@ export default function Home() {
               goes wrong.
             </p>
             <p>
-              <b>Save full flash</b> will read your device&apos;s flash and save
-              it as <Em>flash.bin</Em>. This will take around 25 minutes to
-              complete. You can use that file (or someone else&apos;s) with{' '}
-              <b>Write full flash from file</b> to overwrite your device&apos;s
+              <b>Save full flash</b> will read your device’s flash and save it
+              as <Em>flash.bin</Em>. This will take around 25 minutes to
+              complete. You can use that file (or someone else’s) with{' '}
+              <b>Write full flash from file</b> to overwrite your device’s
               entire flash.
             </p>
           </Stack>
@@ -97,15 +116,15 @@ export default function Home() {
           <Heading size="xl">OTA fast flash controls</Heading>
           <Stack gap={1} color="grey" textStyle="sm">
             <p>
-              Before using this, I&apos;d strongly recommend taking a backup of
-              your device using <b>Save full flash</b> above.
+              Before using this, I’d strongly recommend taking a backup of your
+              device using <b>Save full flash</b> above.
             </p>
             <p>
               <b>Flash to backup partition</b> will download the firmware,
               overwrite the backup partition with the new firmware, and swap
               over to using this partition (leaving your existing firmware as
-              the new backup). This is fast and retains all settings, with
-              the option to swap back if needed.
+              the new backup). This is fast and retains all settings, with the
+              option to swap back if needed.
             </p>
             <p>
               For more advanced flashing options (like flashing to the current
@@ -114,37 +133,37 @@ export default function Home() {
           </Stack>
         </div>
         <Stack as="section">
-          <Stack direction="row" gap={2}>
+          <Stack direction="column" gap={2}>
             <Button
               variant="subtle"
-              flexGrow={1}
               onClick={actions.flashEnglishFirmwareToBackup}
-              disabled={isRunning}
+              disabled={isRunning || !officialFirmwareVersions}
+              loading={!officialFirmwareVersions}
             >
-              Flash English (3.1.1) to backup
+              Flash English firmware ({officialFirmwareVersions?.en ?? '...'})
+              to backup
             </Button>
-          </Stack>
-          <Stack direction="row" gap={2}>
             <Button
               variant="subtle"
-              flexGrow={1}
               onClick={actions.flashChineseFirmwareToBackup}
-              disabled={isRunning}
+              disabled={isRunning || !officialFirmwareVersions}
+              loading={!officialFirmwareVersions}
             >
-              Flash Chinese (3.1.7) to backup
+              Flash Chinese firmware ({officialFirmwareVersions?.ch ?? '...'})
+              to backup
             </Button>
-          </Stack>
-          <Stack direction="row" gap={2}>
             <Button
               variant="subtle"
-              flexGrow={1}
               onClick={actions.flashCrossPointFirmwareToBackup}
-              disabled={isRunning}
+              disabled={isRunning || !communityFirmwareVersions}
+              loading={!communityFirmwareVersions}
             >
-              Flash CrossPoint firmware (Community) to backup
+              Flash CrossPoint firmware (
+              {communityFirmwareVersions?.crossPoint.version}) -{' '}
+              {communityFirmwareVersions?.crossPoint.releaseDate} to backup
             </Button>
           </Stack>
-          <Stack direction="row" gap={2}>
+          <Stack direction="row">
             <Flex grow={1}>
               <FileUpload ref={appPartitionFileInput} />
             </Flex>
@@ -193,12 +212,25 @@ export default function Home() {
       <Alert.Root status="info">
         <Alert.Indicator />
         <Alert.Content>
+          <Alert.Title>Change device language</Alert.Title>
+          <Alert.Description>
+            Before starting the process, it is recommended to change the device
+            language to English. To do this, select “Settings” icon, then click
+            “OK / Confirm” button and “OK / Confirm” again until English is
+            shown. Otherwise, the language will still be Chinese after flashing
+            and you may not notice changes.
+          </Alert.Description>
+        </Alert.Content>
+      </Alert.Root>
+      <Alert.Root status="info">
+        <Alert.Indicator />
+        <Alert.Content>
           <Alert.Title>Device restart instructions</Alert.Title>
           <Alert.Description>
             Once you complete a write operation, you will need to restart your
-            device by pressing and releasing the small button near the bottom
-            right, followed quickly by pressing and holding of the main power
-            button for about 3 seconds.
+            device by pressing and releasing the small “Reset” button near the
+            bottom right, followed quickly by pressing and holding of the main
+            power button for about 3 seconds.
           </Alert.Description>
         </Alert.Content>
       </Alert.Root>

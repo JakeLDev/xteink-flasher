@@ -1,8 +1,9 @@
 'use client';
 
-import React, { ReactNode, useState } from 'react';
+import React, { ReactNode, useRef, useEffect, useState } from 'react';
 import {
   Alert,
+  Badge,
   Button,
   Card,
   CloseButton,
@@ -16,6 +17,7 @@ import {
   Stack,
   Table,
   Text,
+  SimpleGrid,
 } from '@chakra-ui/react';
 import { useEspOperations } from '@/esp/useEspOperations';
 import Steps from '@/components/Steps';
@@ -24,7 +26,12 @@ import OtaPartition, { OtaPartitionDetails } from '@/esp/OtaPartition';
 import HexSpan from '@/components/HexSpan';
 import HexViewer from '@/components/HexViewer';
 import { downloadData } from '@/utils/download';
+import { FirmwareInfo } from '@/utils/firmwareIdentifier';
 import FileUpload, { FileUploadHandle } from '@/components/FileUpload';
+import {
+  getOfficialFirmwareVersions,
+  getCommunityFirmwareRemoteData,
+} from '@/remote/firmwareFetcher';
 
 function OtadataDebug({ otaPartition }: { otaPartition: OtaPartition }) {
   const bootPartitionLabel = otaPartition.getCurrentBootPartitionLabel();
@@ -198,10 +205,97 @@ function AppDebug({
   );
 }
 
+function FirmwareIdentificationDebug({
+  app0: app0Info,
+  app1: app1Info,
+  currentBoot,
+}: {
+  app0: FirmwareInfo;
+  app1: FirmwareInfo;
+  currentBoot: 'app0' | 'app1';
+}) {
+  const getColorPalette = (
+    type: FirmwareInfo['type'],
+  ): 'green' | 'orange' | 'blue' | 'gray' => {
+    switch (type) {
+      case 'official-english':
+      case 'official-chinese':
+        return 'green';
+      case 'crosspoint':
+        return 'blue';
+      case 'unknown':
+      default:
+        return 'orange';
+    }
+  };
+
+  return (
+    <Stack>
+      <Heading size="lg">Firmware Information</Heading>
+      <SimpleGrid columns={{ sm: 1, md: 2 }} gap={4}>
+        {[
+          { label: 'app0', info: app0Info },
+          { label: 'app1', info: app1Info },
+        ].map(({ label, info }) => (
+          <Card.Root
+            variant="subtle"
+            size="sm"
+            key={label}
+            colorPalette={getColorPalette(info.type)}
+          >
+            <Card.Header>
+              <Flex alignItems="center" gap={2}>
+                <Heading size="md">Partition {label}</Heading>
+                {label === currentBoot && (
+                  <Badge colorPalette="green" variant="solid" size="sm">
+                    Active
+                  </Badge>
+                )}
+              </Flex>
+            </Card.Header>
+            <Card.Body>
+              <Stack gap={2}>
+                <div>
+                  <Text fontWeight="bold">Firmware:</Text>
+                  <Text>{info.displayName}</Text>
+                </div>
+                <div>
+                  <Text fontWeight="bold">Version:</Text>
+                  <Text>{info.version}</Text>
+                </div>
+                <div>
+                  <Text fontWeight="bold">Type:</Text>
+                  <Text>{info.type}</Text>
+                </div>
+              </Stack>
+            </Card.Body>
+          </Card.Root>
+        ))}
+      </SimpleGrid>
+    </Stack>
+  );
+}
+
 export default function Debug() {
   const { actions, debugActions, stepData, isRunning } = useEspOperations();
   const [debugOutputNode, setDebugOutputNode] = useState<ReactNode>(null);
   const appPartitionFileInput = React.useRef<FileUploadHandle>(null);
+  const [officialFirmwareVersions, setOfficialFirmwareVersions] = useState<{
+    en: string;
+    ch: string;
+  } | null>(null);
+  const [communityFirmwareVersions, setCommunityFirmwareVersions] = useState<{
+    crossPoint: { version: string; releaseDate: string };
+  } | null>(null);
+  const fullFlashFileInput = useRef<FileUploadHandle>(null);
+
+  useEffect(() => {
+    getOfficialFirmwareVersions().then((versions) =>
+      setOfficialFirmwareVersions(versions),
+    );
+
+    getCommunityFirmwareRemoteData().then(setCommunityFirmwareVersions);
+  }, []);
 
   return (
     <Flex direction="column" gap="20px">
@@ -211,8 +305,8 @@ export default function Debug() {
           <Stack gap={1} color="grey" textStyle="sm">
             <p>
               These are few tools to help debugging / administering your Xtink
-              device. They&apos;re designed to be used by those who are
-              intentionally messing around with their device.
+              device. They’re designed to be used by those who are intentionally
+              messing around with their device.
             </p>
             <p>
               <b>Read otadata partition</b> will read the raw data out of the{' '}
@@ -228,6 +322,12 @@ export default function Debug() {
               <b>Swap boot partitions</b> will check the current boot partition
               (app0 or app1) from <Em>otadata</Em> and rewrite the data in the{' '}
               <Em>otadata</Em> to switch the boot partition.
+            </p>
+            <p>
+              <b>Identify firmware in both partitions</b> will read both app0
+              and app1 partitions and automatically identify which firmware is
+              installed on each (Official English, Official Chinese, CrossPoint
+              Community, or Custom).
             </p>
           </Stack>
         </div>
@@ -309,44 +409,46 @@ export default function Debug() {
           <Alert.Root status="warning" marginTop={3}>
             <Alert.Indicator />
             <Alert.Content>
-              <Alert.Title>Warning: Current firmware will be overwritten</Alert.Title>
+              <Alert.Title>
+                Warning: Current firmware will be overwritten
+              </Alert.Title>
               <Alert.Description>
-                Flashing to the current partition will overwrite the
-                currently used firmware and leave the backup partition unchanged.
-                Proceed with caution.
+                Flashing to the current partition will overwrite the the backup
+                partition unchanged. Proceed with caution.
               </Alert.Description>
             </Alert.Content>
           </Alert.Root>
         </div>
         <Stack as="section">
-          <Stack direction="row" gap={2}>
+          <Stack direction="column" gap={2}>
             <Button
               variant="subtle"
               flexGrow={1}
               onClick={actions.flashEnglishFirmware}
-              disabled={isRunning}
+              disabled={isRunning || !officialFirmwareVersions}
+              loading={!officialFirmwareVersions}
             >
-              Flash English (3.1.1) to current
+              Flash English firmware ({officialFirmwareVersions?.en ?? '...'})
+              to current
             </Button>
-          </Stack>
-          <Stack direction="row" gap={2}>
             <Button
               variant="subtle"
-              flexGrow={1}
               onClick={actions.flashChineseFirmware}
-              disabled={isRunning}
+              disabled={isRunning || !officialFirmwareVersions}
+              loading={!officialFirmwareVersions}
             >
-              Flash Chinese (3.1.7) to current
+              Flash Chinese firmware ({officialFirmwareVersions?.ch ?? '...'})
+              to current
             </Button>
-          </Stack>
-          <Stack direction="row" gap={2}>
             <Button
               variant="subtle"
-              flexGrow={1}
               onClick={actions.flashCrossPointFirmware}
-              disabled={isRunning}
+              disabled={isRunning || !communityFirmwareVersions}
+              loading={!communityFirmwareVersions}
             >
-              Flash CrossPoint firmware (Community) to current
+              Flash CrossPoint firmware (
+              {communityFirmwareVersions?.crossPoint.version}) -{' '}
+              {communityFirmwareVersions?.crossPoint.releaseDate} to current
             </Button>
           </Stack>
           <Stack direction="row" gap={2}>
