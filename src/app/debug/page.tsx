@@ -1,6 +1,6 @@
 'use client';
 
-import React, { ReactNode, useRef, useEffect, useState } from 'react';
+import React, { ReactNode, useEffect, useState } from 'react';
 import {
   Alert,
   Badge,
