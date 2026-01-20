@@ -124,7 +124,8 @@ export default function Home() {
               overwrite the backup partition with the new firmware, and swap
               over to using this partition (leaving your existing firmware as
               the new backup). This is fast and retains all settings, with the
-              option to swap back if needed.
+              option to swap back if needed. If it goes wrong, it should be fine
+              to run again.
             </p>
             <p>
               For more advanced flashing options (like flashing to the current
@@ -177,7 +178,7 @@ export default function Home() {
               }
               disabled={isRunning}
             >
-              Flash file to backup
+              Flash firmware from file to backup
             </Button>
           </Stack>
           {process.env.NODE_ENV === 'development' && (
